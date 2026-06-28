@@ -1,0 +1,424 @@
+{
+  "name": "Veille IA",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        16
+      ],
+      "id": "d89e54d4-0c6b-4bd3-9883-ae77e63f4d3f",
+      "name": "Tous les matins à 9h00"
+    },
+    {
+      "parameters": {
+        "url": "https://www.artificialintelligence-news.com/feed/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -176
+      ],
+      "id": "8ce89ab7-a7ae-4ad2-a2c4-34c26e19acd3",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "url": "https://techcrunch.com/feed/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        16
+      ],
+      "id": "01fc8716-f8e6-46d5-9b8a-c113cafc75b3",
+      "name": "RSS Read1"
+    },
+    {
+      "parameters": {
+        "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        208
+      ],
+      "id": "2d4e11a9-a496-4c98-a23b-a22da7cd2ae6",
+      "name": "RSS Read2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "76a244f6-cb66-4eea-8836-1e163ecc1223",
+              "name": "timestamp",
+              "value": "={{ new Date($json.isoDate).getTime() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        16
+      ],
+      "id": "3f3700d7-6015-445d-a948-6a65575ecfe3",
+      "name": "conversion date en timestamp"
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "title",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        16
+      ],
+      "id": "2e34c6fe-bfae-4c29-9e5b-9244fa36b39c",
+      "name": "suppression des articles en doublon"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "2d0a2e62-6c8f-4008-a02c-ec4bbd17c8f1",
+      "name": "collecte d'articles"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fe32317e-a8b6-4584-91b6-271cf127697c",
+              "leftValue": "={{ $json.timestamp }}",
+              "rightValue": "={{ Date.now() - 86400000 }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "e6b225c2-1d4f-43b6-8b03-f0bf24d30a59",
+              "leftValue": "={{ $json.categories.includes(\"AI\") }}",
+              "rightValue": "{{",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        16
+      ],
+      "id": "0bd818c8-1e64-47e8-a546-c8725bd304ff",
+      "name": "articles des dernières 24h et catégorie \"AI\""
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        16
+      ],
+      "id": "c54a7dcd-4617-4281-9eb3-f2b66c7888d3",
+      "name": "conserve 10 articles maximum "
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Tu es un analyste technologique spécialisé en intelligence artificielle, chargé de produire un bulletin de veille quotidien destiné à des professionnels tech.\n\nVoici les actualités IA des dernières 24h :\n{{ $json.articles_for_llm }}\n\n---\n\n## CONSIGNES DE RÉDACTION\n- Langue : français uniquement (traduire tous les titres et contenus en anglais)\n- Ton : factuel, professionnel, direct\n- Zéro introduction bateau, zéro conclusion générique\n- Priorise les articles à fort impact : nouveaux modèles, levées de fonds majeures, régulation, percées techniques\n\n---\n\n## FORMAT DE SORTIE ATTENDU\n\n### 🤖 BULLETIN IA DU [DATE DU JOUR]\n\n---\n\n### 🏆 TOP 5 DES ACTUS DU JOUR\nPour chaque actu :\n**[Numéro]. [Titre traduit en français]**\n- Catégorie : [Modèle / Financement / Régulation / Produit / Recherche / Industrie]\n- Résumé : [2-3 phrases factuelles]\n- Pourquoi c'est important : [1 phrase sur l'impact réel]\n- Source : [nom du site] — [lien]\n\n---\n\n### 📊 TENDANCE DU JOUR\n[3 phrases maximum résumant la dynamique principale observée : qui investit, quelle techno monte, quel acteur domine l'actu]\n\n---\n\n### 🔭 À SURVEILLER\n[2-3 signaux faibles ou sujets émergents à garder à l'oeil dans les prochains jours]",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1792,
+        16
+      ],
+      "id": "62f2f087-f1a8-4afc-b09b-9bbd8d6b6244",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupère tous les items entrants\nconst items = $input.all();\n\n// Formate chaque article en texte structuré et lisible pour le LLM\nconst formattedArticles = items.map((item, index) => {\n  const article = item.json;\n  \n  const date = article.isoDate \n    ? new Date(article.isoDate).toLocaleDateString('fr-FR', {\n        day: '2-digit', month: 'long', year: 'numeric',\n        hour: '2-digit', minute: '2-digit'\n      })\n    : 'Date inconnue';\n\n  const categories = Array.isArray(article.categories)\n    ? article.categories.join(', ')\n    : 'Non catégorisé';\n\n  return {\n    json: {\n      article_number: index + 1,\n      formatted_text: `\n=== ARTICLE ${index + 1} ===\nTitre      : ${article.title ?? 'Sans titre'}\nAuteur     : ${article.creator ?? 'Inconnu'}\nDate       : ${date}\nCatégories : ${categories}\nRésumé     : ${article.contentSnippet ?? article.content ?? 'Aucun contenu'}\nLien       : ${article.link ?? 'Pas de lien'}\n`.trim()\n    }\n  };\n});\n\n// Concatène tous les articles en un seul bloc de texte pour le LLM\nconst fullText = formattedArticles\n  .map(item => item.json.formatted_text)\n  .join('\\n\\n');\n\n// Retourne un item unique avec le texte complet ET la liste des articles individuels\nreturn [{\n  json: {\n    articles_count: formattedArticles.length,\n    articles_individual: formattedArticles.map(i => i.json),\n    articles_for_llm: fullText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        16
+      ],
+      "id": "7d7b13b6-f1f3-4325-bb5a-8a2e08251a9b",
+      "name": "formate les articles pour le LLM"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        240
+      ],
+      "id": "7d400799-3e3b-4d9e-8c91-97fddbd433c4",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "RGAqGD4rszAv0UFh",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "baileche.theo@gmail.com",
+        "subject": "Actus IA du jour - par n8n",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2144,
+        16
+      ],
+      "id": "c17c93bf-3254-4c9c-aad7-45ee6b5fecbb",
+      "name": "envoie des actus sur gmail",
+      "webhookId": "217cc905-dda3-411b-8301-38f0fff0d60b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "43zrNlgUjcxgyAel",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Tous les matins à 9h00": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read2": {
+      "main": [
+        [
+          {
+            "node": "collecte d'articles",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "RSS Read1": {
+      "main": [
+        [
+          {
+            "node": "collecte d'articles",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "collecte d'articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "conversion date en timestamp": {
+      "main": [
+        [
+          {
+            "node": "articles des dernières 24h et catégorie \"AI\"",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "suppression des articles en doublon": {
+      "main": [
+        [
+          {
+            "node": "conserve 10 articles maximum ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "collecte d'articles": {
+      "main": [
+        [
+          {
+            "node": "conversion date en timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "articles des dernières 24h et catégorie \"AI\"": {
+      "main": [
+        [
+          {
+            "node": "suppression des articles en doublon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "conserve 10 articles maximum ": {
+      "main": [
+        [
+          {
+            "node": "formate les articles pour le LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "envoie des actus sur gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formate les articles pour le LLM": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "INBg1tolrRhr6bIe",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "6f54a2c5-7a55-4fd1-b8ad-34d62ac9d134",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "afa5af0d9982d8deb4a756d1608a7b64dac0a5beee14fec646e1244951c7ba3d"
+  },
+  "nodeGroups": [],
+  "id": "rzDnzvyWqEH8YNH0",
+  "tags": [
+    {
+      "updatedAt": "2026-06-17T17:40:18.184Z",
+      "createdAt": "2026-06-17T17:40:18.184Z",
+      "id": "SYMPDsKc5mzdQ2Lb",
+      "name": "IA"
+    },
+    {
+      "updatedAt": "2026-06-17T17:40:15.887Z",
+      "createdAt": "2026-06-17T17:40:15.887Z",
+      "id": "eVzMCovzPJ5wFTUe",
+      "name": "veille"
+    }
+  ]
+}
